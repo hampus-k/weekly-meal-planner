@@ -85,6 +85,33 @@ app.put('/api/plan', (req, res) => {
   res.json(req.body);
 });
 
+// ── Check if a URL can be embedded in an iframe ────────────────────────────
+const embedCache = new Map(); // domain → { embeddable, ts }
+const EMBED_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+app.get('/api/check-embed', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try {
+    const domain = new URL(url).hostname;
+    const cached = embedCache.get(domain);
+    if (cached && Date.now() - cached.ts < EMBED_CACHE_TTL) {
+      return res.json({ embeddable: cached.embeddable });
+    }
+    const headers = await fetchPageHeaders(url);
+    const xfo = (headers['x-frame-options'] || '').toUpperCase();
+    const csp = headers['content-security-policy'] || '';
+    const faMatch = csp.match(/frame-ancestors\s+([^;]+)/i);
+    let embeddable = true;
+    if (xfo === 'DENY' || xfo === 'SAMEORIGIN') embeddable = false;
+    if (faMatch && !faMatch[1].includes('*')) embeddable = false;
+    embedCache.set(domain, { embeddable, ts: Date.now() });
+    res.json({ embeddable });
+  } catch {
+    res.json({ embeddable: true }); // assume embeddable if check fails
+  }
+});
+
 // ── Fetch page title (server-side, bypasses X-Frame-Options) ───────────────
 app.get('/api/fetch-title', async (req, res) => {
   const { url } = req.query;
@@ -130,6 +157,34 @@ function fetchPageHtml(url, redirectCount = 0) {
     });
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
+  });
+}
+
+function fetchPageHeaders(url, redirectCount = 0) {
+  return new Promise((resolve, reject) => {
+    if (redirectCount > 5) return reject(new Error('Too many redirects'));
+    const mod = url.startsWith('https') ? https : http;
+    const parsed = new URL(url);
+    const options = {
+      hostname: parsed.hostname,
+      path: parsed.pathname + parsed.search,
+      method: 'HEAD',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      timeout: 5000,
+    };
+    const req = mod.request(options, (response) => {
+      response.resume();
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        const nextUrl = new URL(response.headers.location, url).href;
+        return fetchPageHeaders(nextUrl, redirectCount + 1).then(resolve).catch(reject);
+      }
+      resolve(response.headers);
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
+    req.end();
   });
 }
 

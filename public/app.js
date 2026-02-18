@@ -135,12 +135,20 @@ function loadSite(site) {
 }
 
 // ── iframe navigation (browse view) ───────────────────────────────────────
-function navigateTo(url) {
+async function navigateTo(url) {
   if (!url) return;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
   state.currentUrl = url;
   addressBar.value = url;
   iframeOverlay.classList.add('hidden');
+  try {
+    const { embeddable } = await api('GET', `/api/check-embed?url=${encodeURIComponent(url)}`);
+    if (!embeddable) {
+      iframeOverlay.classList.remove('hidden');
+      $('overlay-url-input').value = url;
+      return;
+    }
+  } catch { /* ignore, try loading anyway */ }
   browserFrame.src = url;
 }
 
@@ -359,12 +367,20 @@ function panelLoadSite(site) {
   renderPanelSitePills();
 }
 
-function panelNavigateTo(url) {
+async function panelNavigateTo(url) {
   if (!url) return;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
   panelCurrentUrl = url;
   panelAddressBar.value = url;
   panelIframeOverlay.classList.add('hidden');
+  try {
+    const { embeddable } = await api('GET', `/api/check-embed?url=${encodeURIComponent(url)}`);
+    if (!embeddable) {
+      panelIframeOverlay.classList.remove('hidden');
+      $('panel-overlay-url').value = url;
+      return;
+    }
+  } catch { /* ignore, try loading anyway */ }
   panelFrame.src = url;
 }
 
