@@ -463,3 +463,117 @@ button:active { transform: scale(0.97); }
   flex-direction: column;
   overflow: hidden;
 }
+
+/* ── Overlay URL input & actions ──────────────────────────────────────── */
+.overlay-url-input {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  color: var(--text);
+  outline: none;
+  margin: 12px 0 8px;
+  font-family: inherit;
+}
+.overlay-url-input:focus { border-color: var(--green-light); }
+
+.overlay-card .btn-secondary { margin-bottom: 4px; }
+
+/* ── Day Panel ────────────────────────────────────────────────────────── */
+.day-panel {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.day-panel-header {
+  background: var(--green);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  gap: 12px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.day-panel-back {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+.day-panel-back:hover { opacity: 1; }
+
+.day-panel-day-name {
+  flex: 1;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.btn-clear-day-panel {
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.3);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.8rem;
+  padding: 5px 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.btn-clear-day-panel:hover { background: rgba(255,255,255,0.25); }
+
+.day-panel-tabs {
+  display: flex;
+  background: var(--card);
+  border-bottom: 1.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  padding: 13px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: color 0.15s, border-color 0.15s;
+}
+.panel-tab.active {
+  color: var(--green);
+  border-bottom-color: var(--green);
+}
+
+.panel-tab-content {
+  display: none;
+  flex: 1;
+  overflow: hidden;
+  flex-direction: column;
+}
+.panel-tab-content.active { display: flex; }
+
+#panel-tab-saved {
+  overflow-y: auto;
+  padding: 12px;
+}
+
+#panel-tab-browse {
+  flex-direction: column;
+  overflow: hidden;
+}

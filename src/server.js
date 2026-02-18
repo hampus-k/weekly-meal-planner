@@ -1,6 +1,8 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
+const http  = require('http');
 
 const app = express();
 app.use(express.json());
@@ -82,6 +84,54 @@ app.put('/api/plan', (req, res) => {
   writeJson('plan.json', req.body);
   res.json(req.body);
 });
+
+// ── Fetch page title (server-side, bypasses X-Frame-Options) ───────────────
+app.get('/api/fetch-title', async (req, res) => {
+  const { url } = req.query;
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try {
+    const html = await fetchPageHtml(url);
+    const ogMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"'<]+)/i)
+                 || html.match(/<meta[^>]+content=["']([^"'<]+)["'][^>]+property=["']og:title["']/i);
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const raw = (ogMatch ? ogMatch[1] : titleMatch ? titleMatch[1] : '');
+    const name = raw.replace(/&amp;/g, '&').replace(/&#(\d+);/g, (_, c) => String.fromCharCode(c)).trim();
+    res.json({ name });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+function fetchPageHtml(url, redirectCount = 0) {
+  return new Promise((resolve, reject) => {
+    if (redirectCount > 5) return reject(new Error('Too many redirects'));
+    const mod = url.startsWith('https') ? https : http;
+    const req = mod.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'sv-SE,sv;q=0.9,en;q=0.8',
+      },
+      timeout: 8000,
+    }, (response) => {
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        const nextUrl = new URL(response.headers.location, url).href;
+        response.resume();
+        return fetchPageHtml(nextUrl, redirectCount + 1).then(resolve).catch(reject);
+      }
+      let data = '';
+      response.setEncoding('utf8');
+      response.on('data', chunk => {
+        data += chunk;
+        if (data.length > 150000) req.destroy();
+      });
+      response.on('end', () => resolve(data));
+      response.on('close', () => resolve(data));
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out')); });
+  });
+}
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

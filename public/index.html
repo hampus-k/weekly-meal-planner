@@ -49,9 +49,10 @@
         <div class="overlay-card">
           <span class="overlay-icon">🚫</span>
           <p>Den här sidan kan inte visas i appen.</p>
-          <p class="hint">Öppna sidan i en ny flik, navigera till ett recept,<br>
-             kopiera URL:en och klistra in den i adressfältet ovan.</p>
-          <button class="btn-primary" id="btn-fallback-open">Öppna i ny flik</button>
+          <p class="hint">Öppna receptet i en ny flik, kopiera URL:en och klistra in den nedan.</p>
+          <button class="btn-secondary" id="btn-fallback-open">Öppna i ny flik</button>
+          <input id="overlay-url-input" class="overlay-url-input" type="url" placeholder="https://…" />
+          <button class="btn-primary" id="btn-overlay-save">Spara recept</button>
         </div>
       </div>
     </div>
@@ -68,25 +69,6 @@
       <span>Bläddra</span>
     </button>
   </nav>
-
-  <!-- ═══════════ MODAL: Spara recept ═══════════ -->
-  <div id="modal-save-recipe" class="modal-overlay hidden">
-    <div class="modal">
-      <h2>Spara recept</h2>
-      <label>
-        Namn
-        <input id="save-recipe-name" type="text" placeholder="t.ex. Pasta Carbonara" />
-      </label>
-      <label>
-        URL
-        <input id="save-recipe-url" type="url" placeholder="https://…" />
-      </label>
-      <div class="modal-actions">
-        <button class="btn-secondary" id="btn-cancel-save">Avbryt</button>
-        <button class="btn-primary" id="btn-confirm-save">Spara</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ═══════════ MODAL: Lägg till receptsida ═══════════ -->
   <div id="modal-add-site" class="modal-overlay hidden">
@@ -107,14 +89,47 @@
     </div>
   </div>
 
-  <!-- ═══════════ MODAL: Välj recept för dag ═══════════ -->
-  <div id="modal-pick-recipe" class="modal-overlay hidden">
-    <div class="modal">
-      <h2 id="pick-modal-title">Välj recept</h2>
-      <div id="pick-recipe-list" class="pick-list"></div>
-      <div class="modal-actions">
-        <button class="btn-danger" id="btn-clear-day">Ta bort</button>
-        <button class="btn-secondary" id="btn-cancel-pick">Avbryt</button>
+  <!-- ═══════════ DAY PANEL ═══════════ -->
+  <div id="day-panel" class="day-panel hidden">
+    <div class="day-panel-header">
+      <button class="day-panel-back" id="btn-close-day-panel">←</button>
+      <span id="day-panel-title" class="day-panel-day-name">Måndag</span>
+      <button class="btn-clear-day-panel" id="btn-panel-clear-day">Ta bort</button>
+    </div>
+    <div class="day-panel-tabs" id="day-panel-tabs">
+      <button class="panel-tab active" data-tab="saved">Sparade recept</button>
+      <button class="panel-tab" data-tab="browse">Bläddra</button>
+    </div>
+    <div id="panel-tab-saved" class="panel-tab-content active">
+      <div id="panel-recipe-list" class="pick-list"></div>
+    </div>
+    <div id="panel-tab-browse" class="panel-tab-content">
+      <div class="browser-toolbar">
+        <div class="site-pills-wrap">
+          <div id="panel-site-pills" class="site-pills"></div>
+          <button class="pill pill-add" id="btn-panel-add-site" title="Lägg till receptsida">+</button>
+        </div>
+        <div class="address-bar-row">
+          <input id="panel-address-bar" class="address-bar" type="url" placeholder="Klistra in eller skriv en URL…" />
+          <button class="icon-btn" id="btn-panel-go" title="Gå till sidan">↵</button>
+          <button class="icon-btn" id="btn-panel-open-tab" title="Öppna i ny flik">↗</button>
+          <button class="btn-add-recipe" id="btn-panel-save" title="Spara recept & lägg till på dagen">+</button>
+        </div>
+      </div>
+      <div class="iframe-wrap">
+        <iframe id="panel-frame"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-activation"
+                title="Receptwebbläsare"></iframe>
+        <div id="panel-iframe-overlay" class="iframe-overlay hidden">
+          <div class="overlay-card">
+            <span class="overlay-icon">🚫</span>
+            <p>Den här sidan kan inte visas i appen.</p>
+            <p class="hint">Öppna receptet i en ny flik, kopiera URL:en och klistra in den nedan.</p>
+            <button class="btn-secondary" id="btn-panel-fallback-open">Öppna i ny flik</button>
+            <input id="panel-overlay-url" class="overlay-url-input" type="url" placeholder="https://…" />
+            <button class="btn-primary" id="btn-panel-overlay-save">Spara & välj</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

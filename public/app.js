@@ -80,12 +80,12 @@ function renderWeekGrid() {
       <span class="day-label">${day.slice(0, 3)}</span>
       <span class="day-recipe${recipe ? '' : ' empty'}">
         ${recipe
-          ? `${recipe.name}<a class="day-recipe-link" href="${recipe.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗</a>`
+          ? `${escHtml(recipe.name)}<a class="day-recipe-link" href="${recipe.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗</a>`
           : '— Inget valt'}
       </span>
       <span class="day-chevron">›</span>
     `;
-    card.addEventListener('click', () => openPickModal(day));
+    card.addEventListener('click', () => openDayPanel(day));
     weekGrid.appendChild(card);
   });
 }
@@ -116,7 +116,7 @@ function renderRecipeChips() {
   });
 }
 
-// ── Site pills ────────────────────────────────────────────────────────────
+// ── Site pills (browse view) ───────────────────────────────────────────────
 function renderSitePills() {
   sitePills.innerHTML = '';
   state.sites.forEach(site => {
@@ -134,7 +134,7 @@ function loadSite(site) {
   renderSitePills();
 }
 
-// ── iframe navigation ─────────────────────────────────────────────────────
+// ── iframe navigation (browse view) ───────────────────────────────────────
 function navigateTo(url) {
   if (!url) return;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
@@ -144,25 +144,22 @@ function navigateTo(url) {
   browserFrame.src = url;
 }
 
-// Detect iframe load failure (X-Frame-Options etc.)
 browserFrame.addEventListener('load', () => {
   try {
-    // If same-origin, this succeeds
     const loc = browserFrame.contentWindow.location.href;
-    if (loc === 'about:blank') return; // initial state
+    if (loc === 'about:blank') return;
     state.currentUrl = loc;
     addressBar.value = loc;
   } catch {
-    // cross-origin: perfectly normal, frame loaded something
+    // cross-origin: normal
   }
 });
 
-// Try to detect blocked frames (CSP/X-Frame-Options shows empty body)
 browserFrame.addEventListener('error', () => {
   iframeOverlay.classList.remove('hidden');
 });
 
-// ── Address bar ───────────────────────────────────────────────────────────
+// ── Address bar (browse view) ──────────────────────────────────────────────
 $('btn-go').addEventListener('click', () => navigateTo(addressBar.value.trim()));
 addressBar.addEventListener('keydown', e => {
   if (e.key === 'Enter') navigateTo(addressBar.value.trim());
@@ -175,37 +172,72 @@ $('btn-open-tab').addEventListener('click', () => {
 
 $('btn-fallback-open').addEventListener('click', () => {
   const url = state.currentUrl;
-  if (url) window.open(url, '_blank', 'noopener');
+  if (url) {
+    window.open(url, '_blank', 'noopener');
+    $('overlay-url-input').value = url;
+  }
 });
 
-// ── Save recipe modal ─────────────────────────────────────────────────────
-$('btn-save-recipe').addEventListener('click', () => {
-  $('save-recipe-url').value  = addressBar.value || state.currentUrl;
-  $('save-recipe-name').value = '';
-  openModal('modal-save-recipe');
-  setTimeout(() => $('save-recipe-name').focus(), 80);
+// ── Save recipe (browse view "+" button) – auto-fetches title ─────────────
+$('btn-save-recipe').addEventListener('click', async () => {
+  const url = addressBar.value.trim() || state.currentUrl;
+  if (!url) return;
+  const btn = $('btn-save-recipe');
+  btn.textContent = '…';
+  btn.disabled = true;
+  try {
+    await saveRecipeFromUrl(url);
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = '+'; btn.disabled = false; }, 1500);
+  } catch {
+    btn.textContent = '+';
+    btn.disabled = false;
+  }
 });
 
-$('btn-cancel-save').addEventListener('click', () => closeModal('modal-save-recipe'));
+// Save from overlay URL input (browse view)
+$('btn-overlay-save').addEventListener('click', async () => {
+  const url = $('overlay-url-input').value.trim();
+  if (!url) return;
+  const btn = $('btn-overlay-save');
+  btn.textContent = '…';
+  btn.disabled = true;
+  try {
+    await saveRecipeFromUrl(url);
+    btn.textContent = '✓';
+    setTimeout(() => { btn.textContent = 'Spara recept'; btn.disabled = false; }, 1500);
+  } catch {
+    btn.textContent = 'Spara recept';
+    btn.disabled = false;
+  }
+});
 
-$('btn-confirm-save').addEventListener('click', async () => {
-  const name = $('save-recipe-name').value.trim();
-  const url  = $('save-recipe-url').value.trim();
-  if (!name || !url) return;
+// ── Shared recipe save helper ──────────────────────────────────────────────
+async function saveRecipeFromUrl(url) {
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  let name = '';
+  try {
+    const result = await api('GET', `/api/fetch-title?url=${encodeURIComponent(url)}`);
+    name = result.name || '';
+  } catch { /* ignore, fall back to hostname */ }
+  if (!name) {
+    try { name = new URL(url).hostname.replace(/^www\./, ''); } catch { name = url; }
+  }
   const recipe = await api('POST', '/api/recipes', { name, url });
   state.recipes.push(recipe);
   renderRecipeChips();
-  closeModal('modal-save-recipe');
-});
+  return recipe;
+}
 
 // ── Add site modal ────────────────────────────────────────────────────────
-$('btn-add-site').addEventListener('click', () => {
+function openAddSiteModal() {
   $('add-site-name').value = '';
   $('add-site-url').value  = '';
   openModal('modal-add-site');
   setTimeout(() => $('add-site-name').focus(), 80);
-});
+}
 
+$('btn-add-site').addEventListener('click', openAddSiteModal);
 $('btn-cancel-site').addEventListener('click', () => closeModal('modal-add-site'));
 
 $('btn-confirm-site').addEventListener('click', async () => {
@@ -215,56 +247,21 @@ $('btn-confirm-site').addEventListener('click', async () => {
   const site = await api('POST', '/api/sites', { name, url });
   state.sites.push(site);
   renderSitePills();
+  renderPanelSitePills();
   closeModal('modal-add-site');
 });
 
-// ── Pick recipe for day modal ─────────────────────────────────────────────
-function openPickModal(day) {
-  state.pickDay = day;
-  $('pick-modal-title').textContent = day;
-  const list = $('pick-recipe-list');
-  list.innerHTML = '';
-
-  if (state.recipes.length === 0) {
-    list.innerHTML = '<p class="hint">Inga sparade recept ännu. Bläddra och spara recept först.</p>';
-  } else {
-    state.recipes.forEach(recipe => {
-      const item = document.createElement('div');
-      item.className = 'pick-item';
-      item.innerHTML = `
-        <span class="pick-item-name">${escHtml(recipe.name)}</span>
-        <span class="pick-item-url">${escHtml(recipe.url)}</span>
-      `;
-      item.addEventListener('click', () => assignRecipe(day, recipe.id));
-      list.appendChild(item);
-    });
-  }
-
-  openModal('modal-pick-recipe');
-}
-
+// ── Assign / delete recipe ─────────────────────────────────────────────────
 async function assignRecipe(day, recipeId) {
   state.plan[day] = recipeId;
   await api('PUT', '/api/plan', state.plan);
   renderWeekGrid();
-  closeModal('modal-pick-recipe');
+  closeDayPanel();
 }
 
-$('btn-clear-day').addEventListener('click', async () => {
-  if (!state.pickDay) return;
-  state.plan[state.pickDay] = null;
-  await api('PUT', '/api/plan', state.plan);
-  renderWeekGrid();
-  closeModal('modal-pick-recipe');
-});
-
-$('btn-cancel-pick').addEventListener('click', () => closeModal('modal-pick-recipe'));
-
-// ── Delete recipe ─────────────────────────────────────────────────────────
 async function deleteRecipe(id) {
   await api('DELETE', `/api/recipes/${id}`);
   state.recipes = state.recipes.filter(r => r.id !== id);
-  // Clear from plan if assigned
   DAYS.forEach(day => {
     if (state.plan[day] === id) state.plan[day] = null;
   });
@@ -272,6 +269,169 @@ async function deleteRecipe(id) {
   renderRecipeChips();
   renderWeekGrid();
 }
+
+// ── DAY PANEL ──────────────────────────────────────────────────────────────
+let panelCurrentUrl   = '';
+let panelActiveSiteId = null;
+
+const dayPanel          = $('day-panel');
+const dayPanelTitle     = $('day-panel-title');
+const panelRecipeList   = $('panel-recipe-list');
+const panelFrame        = $('panel-frame');
+const panelAddressBar   = $('panel-address-bar');
+const panelIframeOverlay = $('panel-iframe-overlay');
+const panelSitePillsEl  = $('panel-site-pills');
+
+function openDayPanel(day) {
+  state.pickDay = day;
+  dayPanelTitle.textContent = day;
+  switchPanelTab('saved');
+  renderPanelRecipeList();
+  dayPanel.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDayPanel() {
+  dayPanel.classList.add('hidden');
+  document.body.style.overflow = '';
+  state.pickDay = null;
+}
+
+function switchPanelTab(tab) {
+  document.querySelectorAll('#day-panel-tabs .panel-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  document.querySelectorAll('.panel-tab-content').forEach(el => {
+    el.classList.toggle('active', el.id === `panel-tab-${tab}`);
+  });
+}
+
+document.querySelectorAll('#day-panel-tabs .panel-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    switchPanelTab(btn.dataset.tab);
+    if (btn.dataset.tab === 'browse') renderPanelSitePills();
+  });
+});
+
+$('btn-close-day-panel').addEventListener('click', closeDayPanel);
+
+$('btn-panel-clear-day').addEventListener('click', async () => {
+  if (!state.pickDay) return;
+  state.plan[state.pickDay] = null;
+  await api('PUT', '/api/plan', state.plan);
+  renderWeekGrid();
+  closeDayPanel();
+});
+
+function renderPanelRecipeList() {
+  panelRecipeList.innerHTML = '';
+  if (state.recipes.length === 0) {
+    panelRecipeList.innerHTML = '<p class="hint">Inga sparade recept ännu.<br>Gå till fliken <strong>Bläddra</strong> för att hitta recept.</p>';
+    return;
+  }
+  state.recipes.forEach(recipe => {
+    const item = document.createElement('div');
+    item.className = 'pick-item';
+    item.innerHTML = `
+      <span class="pick-item-name">${escHtml(recipe.name)}</span>
+      <span class="pick-item-url">${escHtml(recipe.url)}</span>
+    `;
+    item.addEventListener('click', () => assignRecipe(state.pickDay, recipe.id));
+    panelRecipeList.appendChild(item);
+  });
+}
+
+// Panel site pills
+function renderPanelSitePills() {
+  panelSitePillsEl.innerHTML = '';
+  state.sites.forEach(site => {
+    const pill = document.createElement('button');
+    pill.className = `pill${panelActiveSiteId === site.id ? ' active' : ''}`;
+    pill.textContent = site.name;
+    pill.addEventListener('click', () => panelLoadSite(site));
+    panelSitePillsEl.appendChild(pill);
+  });
+}
+
+function panelLoadSite(site) {
+  panelActiveSiteId = site.id;
+  panelNavigateTo(site.url);
+  renderPanelSitePills();
+}
+
+function panelNavigateTo(url) {
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  panelCurrentUrl = url;
+  panelAddressBar.value = url;
+  panelIframeOverlay.classList.add('hidden');
+  panelFrame.src = url;
+}
+
+panelFrame.addEventListener('load', () => {
+  try {
+    const loc = panelFrame.contentWindow.location.href;
+    if (loc === 'about:blank') return;
+    panelCurrentUrl = loc;
+    panelAddressBar.value = loc;
+  } catch {
+    // cross-origin: normal
+  }
+});
+
+panelFrame.addEventListener('error', () => {
+  panelIframeOverlay.classList.remove('hidden');
+});
+
+$('btn-panel-go').addEventListener('click', () => panelNavigateTo(panelAddressBar.value.trim()));
+panelAddressBar.addEventListener('keydown', e => {
+  if (e.key === 'Enter') panelNavigateTo(panelAddressBar.value.trim());
+});
+
+$('btn-panel-open-tab').addEventListener('click', () => {
+  const url = panelAddressBar.value.trim() || panelCurrentUrl;
+  if (url) window.open(url, '_blank', 'noopener');
+});
+
+$('btn-panel-fallback-open').addEventListener('click', () => {
+  const url = panelCurrentUrl;
+  if (url) {
+    window.open(url, '_blank', 'noopener');
+    $('panel-overlay-url').value = url;
+  }
+});
+
+// "+" in panel browse tab: auto-fetch title, save, assign to day
+$('btn-panel-save').addEventListener('click', async () => {
+  const url = panelAddressBar.value.trim() || panelCurrentUrl;
+  if (!url) return;
+  await panelSaveAndAssign(url);
+});
+
+// Save from overlay URL paste (panel)
+$('btn-panel-overlay-save').addEventListener('click', async () => {
+  const url = $('panel-overlay-url').value.trim();
+  if (!url) return;
+  await panelSaveAndAssign(url);
+});
+
+async function panelSaveAndAssign(url) {
+  const btn = $('btn-panel-save');
+  btn.textContent = '…';
+  btn.disabled = true;
+  try {
+    const recipe = await saveRecipeFromUrl(url);
+    if (state.pickDay) await assignRecipe(state.pickDay, recipe.id);
+  } catch (err) {
+    console.error(err);
+    alert('Kunde inte spara receptet. Försök igen.');
+  } finally {
+    btn.textContent = '+';
+    btn.disabled = false;
+  }
+}
+
+$('btn-panel-add-site').addEventListener('click', openAddSiteModal);
 
 // ── Modal helpers ─────────────────────────────────────────────────────────
 function openModal(id) {
@@ -281,7 +441,6 @@ function closeModal(id) {
   $(id).classList.add('hidden');
 }
 
-// Close modal on backdrop click
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', e => {
     if (e.target === overlay) closeModal(overlay.id);
