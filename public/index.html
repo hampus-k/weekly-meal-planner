@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Middagsplaneraren</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══════════ PLAN VIEW ═══════════ -->
+  <div id="plan-view" class="view active">
+    <header class="app-header">
+      <h1>Veckans middag</h1>
+    </header>
+    <main class="plan-main">
+      <div id="week-grid" class="week-grid"></div>
+      <section class="saved-recipes-section">
+        <div class="section-header">
+          <h2>Sparade recept</h2>
+        </div>
+        <div id="recipe-chips" class="recipe-chips"></div>
+        <p id="no-recipes-hint" class="hint hidden">
+          Bläddra bland recept och tryck + för att spara.
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <!-- ═══════════ BROWSE VIEW ═══════════ -->
+  <div id="browse-view" class="view">
+    <div class="browser-toolbar">
+      <div class="site-pills-wrap">
+        <div id="site-pills" class="site-pills"></div>
+        <button class="pill pill-add" id="btn-add-site" title="Lägg till receptsida">+</button>
+      </div>
+      <div class="address-bar-row">
+        <input id="address-bar" class="address-bar" type="url"
+               placeholder="Klistra in eller skriv en URL…" />
+        <button class="icon-btn" id="btn-go" title="Gå till sidan">↵</button>
+        <button class="icon-btn" id="btn-open-tab" title="Öppna i ny flik">↗</button>
+        <button class="btn-add-recipe" id="btn-save-recipe" title="Spara recept">+</button>
+      </div>
+    </div>
+    <div class="iframe-wrap">
+      <iframe id="browser-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-activation"
+              title="Receptwebbläsare"></iframe>
+      <div id="iframe-overlay" class="iframe-overlay hidden">
+        <div class="overlay-card">
+          <span class="overlay-icon">🚫</span>
+          <p>Den här sidan kan inte visas i appen.</p>
+          <p class="hint">Öppna sidan i en ny flik, navigera till ett recept,<br>
+             kopiera URL:en och klistra in den i adressfältet ovan.</p>
+          <button class="btn-primary" id="btn-fallback-open">Öppna i ny flik</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ BOTTOM NAV ═══════════ -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="plan">
+      <span class="nav-icon">📅</span>
+      <span>Planering</span>
+    </button>
+    <button class="nav-btn" data-view="browse">
+      <span class="nav-icon">🔍</span>
+      <span>Bläddra</span>
+    </button>
+  </nav>
+
+  <!-- ═══════════ MODAL: Spara recept ═══════════ -->
+  <div id="modal-save-recipe" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>Spara recept</h2>
+      <label>
+        Namn
+        <input id="save-recipe-name" type="text" placeholder="t.ex. Pasta Carbonara" />
+      </label>
+      <label>
+        URL
+        <input id="save-recipe-url" type="url" placeholder="https://…" />
+      </label>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="btn-cancel-save">Avbryt</button>
+        <button class="btn-primary" id="btn-confirm-save">Spara</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ MODAL: Lägg till receptsida ═══════════ -->
+  <div id="modal-add-site" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>Lägg till receptsida</h2>
+      <label>
+        Namn
+        <input id="add-site-name" type="text" placeholder="t.ex. Tasteline" />
+      </label>
+      <label>
+        URL
+        <input id="add-site-url" type="url" placeholder="https://…" />
+      </label>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="btn-cancel-site">Avbryt</button>
+        <button class="btn-primary" id="btn-confirm-site">Lägg till</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ MODAL: Välj recept för dag ═══════════ -->
+  <div id="modal-pick-recipe" class="modal-overlay hidden">
+    <div class="modal">
+      <h2 id="pick-modal-title">Välj recept</h2>
+      <div id="pick-recipe-list" class="pick-list"></div>
+      <div class="modal-actions">
+        <button class="btn-danger" id="btn-clear-day">Ta bort</button>
+        <button class="btn-secondary" id="btn-cancel-pick">Avbryt</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
